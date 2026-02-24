@@ -44,4 +44,9 @@
   <ItemGroup>
     <Library Include="lib\Hotkeyed.lib" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\DeviceBinder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
 </Project>
