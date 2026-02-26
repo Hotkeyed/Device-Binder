@@ -67,4 +67,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <QtRcc Include="resources\icon\Resource.qrc" />
+  </ItemGroup>
 </Project>

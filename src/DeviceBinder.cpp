@@ -1,10 +1,10 @@
 #include "DeviceBinder.h"
 
-
 DeviceBinder* g_pMainWin = nullptr;
 
 DeviceBinder::DeviceBinder(Mapping& mapping, QWidget* parent) : currentMapping(mapping), QMainWindow(parent) {
     g_pMainWin = this;
+    this->setWindowIcon(QIcon(":/icon.ico"));
     setupUi();
     populateDeviceTree();
 
