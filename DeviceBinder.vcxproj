@@ -61,7 +61,9 @@
   <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <QtModules>core;gui;widgets</QtModules>
   </PropertyGroup>
-  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|x64'" />
+  <PropertyGroup Label="QtSettings" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <QtModules>core;gui;widgets</QtModules>
+  </PropertyGroup>
   <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') OR !Exists('$(QtMsBuild)\Qt.props')">
     <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />
   </Target>
@@ -89,6 +91,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\HotKeyedLIB\src;$(IncludePath)</IncludePath>
     <LibraryPath>lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;$(SourcePath)</SourcePath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LibraryPath>lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\HotKeyedLIB\src;$(IncludePath)</IncludePath>
     <SourcePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -127,7 +134,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -151,12 +158,15 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\DeviceBinder\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Hotkeyed.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -185,6 +195,7 @@
   <ItemGroup>
     <ClCompile Include="..\Hotkeyed\src\device\DeviceManager.cpp" />
     <ClCompile Include="..\Hotkeyed\src\device\Mapping.cpp" />
+    <ClCompile Include="..\Hotkeyed\src\windows\Interceptor.cpp" />
     <ClCompile Include="src\DeviceBinder.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>

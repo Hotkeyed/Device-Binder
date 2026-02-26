@@ -70,7 +70,8 @@ int main(int argc, char* argv[]) {
     int result = app.exec();
 
     // 4. CLEANUP: This runs AFTER the window is closed
-    interceptor.end(); 
+    interceptor.end();
+    hardwareThread.join();
 
     return result;
 }

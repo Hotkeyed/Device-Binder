@@ -58,6 +58,9 @@
     <ClCompile Include="..\Hotkeyed\src\device\DeviceManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\Hotkeyed\src\windows\Interceptor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\NumericTreeWidget.h">
