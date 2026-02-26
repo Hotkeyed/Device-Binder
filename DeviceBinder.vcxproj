@@ -87,8 +87,9 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\HotKeyedLIB\src;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\HotKeyedLIB\src;$(IncludePath)</IncludePath>
     <LibraryPath>lib;$(LibraryPath)</LibraryPath>
+    <SourcePath>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;$(SourcePath)</SourcePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -128,6 +129,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>C:\Users\makad\Documents\Projects\C++\Hotkeyed\Hotkeyed\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -135,6 +137,10 @@
       <AdditionalDependencies>Hotkeyed.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Users\shubh\OneDrive\Documents\Projects\C++\Hotkeyed\DeviceBinder\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -154,9 +160,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\DeviceBinder.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="resources\icon\icons.rc" />
     <ResourceCompile Include="resources\manifest\manifest.rc" />
   </ItemGroup>
@@ -165,22 +168,28 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\icon\icon.ico" />
-    <Image Include="resources\icon\pause.ico" />
-    <Image Include="resources\icon\start.ico" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="lib\Hotkeyed.lib" />
-  </ItemGroup>
-  <ItemGroup>
-    <QtMoc Include="src\DeviceBinder.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".gitattributes" />
     <None Include=".gitignore" />
     <None Include="DeviceBinder.qtvscr" />
     <None Include="lib\Hotkeyed.pdb" />
-    <None Include="mapping.mapping" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="src\DeviceBinder.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\Hotkeyed\src\device\DeviceManager.cpp" />
+    <ClCompile Include="..\Hotkeyed\src\device\Mapping.cpp" />
+    <ClCompile Include="src\DeviceBinder.cpp" />
+    <ClCompile Include="src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\NumericTreeWidget.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Import Project="$(QtMsBuild)\qt.targets" Condition="Exists('$(QtMsBuild)\qt.targets')" />

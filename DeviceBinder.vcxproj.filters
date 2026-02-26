@@ -15,11 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\DeviceBinder.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="resources\manifest\manifest.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
@@ -31,12 +26,6 @@
     <Manifest Include="resources\manifest\DeviceBinder.exe.manifest" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\icon\pause.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="resources\icon\start.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="resources\icon\icon.ico">
       <Filter>Resource Files</Filter>
     </Image>
@@ -45,7 +34,33 @@
     <Library Include="lib\Hotkeyed.lib" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\DeviceBinder.h">
+    <None Include=".gitattributes" />
+    <None Include=".gitignore" />
+    <None Include="DeviceBinder.qtvscr" />
+    <None Include="lib\Hotkeyed.pdb" />
+    <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="src\DeviceBinder.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\DeviceBinder.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Hotkeyed\src\device\Mapping.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Hotkeyed\src\device\DeviceManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\NumericTreeWidget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

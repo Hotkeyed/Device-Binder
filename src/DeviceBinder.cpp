@@ -1,188 +1,361 @@
 #include "DeviceBinder.h"
-#include <QMenuBar>
-#include <QFileDialog>
-#include <QHeaderView>
-#include <QApplication>
-#include <QFile>
-#include <QTextStream>
 
-DeviceBinder::DeviceBinder(QWidget* parent) : QMainWindow(parent) {
+
+DeviceBinder* g_pMainWin = nullptr;
+
+DeviceBinder::DeviceBinder(Mapping& mapping, QWidget* parent) : currentMapping(mapping), QMainWindow(parent) {
+    g_pMainWin = this;
     setupUi();
+    populateDeviceTree();
 
-    // Connect the thread-safe signal
-    connect(this, &DeviceBinder::logMessageReceived, this, &DeviceBinder::appendToLog);
+    connect(this, &DeviceBinder::requestLogUpdate, this, &DeviceBinder::onLogReceived);
 }
-void DeviceBinder::handleSaveMapping() {
-    QString path = QFileDialog::getSaveFileName(this, "Save Mapping", "", "JSON Files (*.json)");
-    if (!path.isEmpty()) {
-        // Implement your save logic here
-    }
-}
+
+DeviceBinder::~DeviceBinder() { g_pMainWin = nullptr; }
+
 void DeviceBinder::setupUi() {
-    setWindowTitle("Device Binder");
-    resize(1200, 800);
+    this->setWindowTitle("Device Binder");
+    this->resize(1440, 810);
 
-    // Create Menubar (Replaces AppendMenuW)
-    QMenu* fileMenu = menuBar()->addMenu("&File");
-    fileMenu->addAction("Save Mapping", this, &DeviceBinder::handleSaveMapping);
-    fileMenu->addAction("Apply Mapping", this, &DeviceBinder::handleApplyMapping);
-    fileMenu->addSeparator();
-    fileMenu->addAction("Export Keyboard Log", this, &DeviceBinder::handleExportKeyboardLog);
-    fileMenu->addAction("Export Mouse Log", this, &DeviceBinder::handleExportMouseLog);
+    QMenuBar* mBar = this->menuBar();
 
-    tabs = new QTabWidget(this);
-    setCentralWidget(tabs);
+    // File Menu
+    QMenu* fileMenu = mBar->addMenu("&File");
 
-    createDeviceTab();
-    createKeyboardTab();
-    createMouseTab();
-}
+    // Add actions with shortcuts (matching your IDM logic)
+    QAction* saveAct = fileMenu->addAction("&Save Mapping");
+    saveAct->setShortcut(QKeySequence::Save);
+    connect(saveAct, &QAction::triggered, this, &DeviceBinder::onSaveMapping);
 
-void DeviceBinder::createDeviceTab() {
-    QWidget* container = new QWidget();
-    QVBoxLayout* layout = new QVBoxLayout(container);
+    QAction* applyAct = fileMenu->addAction("&Apply Mapping");
+    connect(applyAct, &QAction::triggered, this, &DeviceBinder::onApplyMapping);
 
-    deviceTable = new QTableWidget(0, 4);
-    deviceTable->setHorizontalHeaderLabels({"Device ID", "Device Name", "Manufacturer", "Interface"});
-    deviceTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    QAction* exportAct = fileMenu->addAction("&Export Mapping");
+    connect(exportAct, &QAction::triggered, this, &DeviceBinder::onExportMapping);
 
-    // In a real app, you would loop through DeviceManager here to populate rows
-    layout->addWidget(deviceTable);
-    tabs->addTab(container, "Devices");
-}
+    fileMenu->addSeparator(); // Visual line in the menu
 
-void DeviceBinder::createKeyboardTab() {
-    QWidget* container = new QWidget();
-    QHBoxLayout* mainLayout = new QHBoxLayout(container);
+    // Export Submenu
+    QAction* exportKeyboardLog = fileMenu->addAction("&Export Keyboard Logs");
+    connect(exportKeyboardLog, &QAction::triggered, this, &DeviceBinder::onExportKbLog);
 
-    // Options Panel
-    QGroupBox* options = new QGroupBox("Options");
-    QVBoxLayout* optLayout = new QVBoxLayout(options);
+    QAction* exportMouseLog = fileMenu->addAction("&Export Mouse Logs");
+    connect(exportMouseLog, &QAction::triggered, this, &DeviceBinder::onExportMLog);
 
-    kbInterfaceCheck = new QCheckBox("Interface Name");
-    kbProductCheck = new QCheckBox("Product Name");
+    // --- THE REST OF THE UI ---
+    QTabWidget* tabs = new QTabWidget(this);
+
+    // --- TAB 1: DEVICES (Grouped View) ---
+    QWidget* devicePage = new QWidget();
+    QVBoxLayout* deviceLayout = new QVBoxLayout(devicePage);
+
+    // Summary Label
+    summaryLabel = new QLabel("Device Count: 0  Keyboard Count: 0  Mouse Count: 0");
+    deviceLayout->addWidget(summaryLabel);
+
+    deviceTree = new QTreeWidget();
+    deviceTree->setColumnCount(4);
+    deviceTree->setHeaderLabels({"Device ID", "Device Name", "Manufacturer Name", "Device Interface Name"});
+    deviceTree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents); // ID column
+    deviceTree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents); // Product Name
+    deviceTree->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents); // Manufacturer
+    deviceTree->header()->setSectionResizeMode(3, QHeaderView::Stretch);
+    deviceTree->header()->setStretchLastSection(true);
+    deviceTree->setSortingEnabled(true);
+    deviceTree->header()->setSectionsClickable(true);
+    connect(deviceTree, &QTreeWidget::itemChanged, this, &DeviceBinder::onItemChanged);
+    deviceLayout->addWidget(deviceTree);
+
+    tabs->addTab(devicePage, "Devices");
+
+    // --- TAB 2: KEYBOARD LOG ---
+    QWidget* kbPage = new QWidget();
+    QHBoxLayout* kbLayout = new QHBoxLayout(kbPage);
+    QGroupBox* kbOptions = new QGroupBox("Options");
+    QVBoxLayout* kbOptV = new QVBoxLayout(kbOptions);
+
+    kbIntCheck = new QCheckBox("Device Interface Name");
+    kbProdCheck = new QCheckBox("Product Name");
+    kbManCheck = new QCheckBox("Manufacturer Name");
+    kbKeyCheck = new QCheckBox("Device Key");
     kbIdCheck = new QCheckBox("Device ID");
     kbDownCheck = new QCheckBox("Key Down");
     kbUpCheck = new QCheckBox("Key Up");
+    btnToggleKb = new QPushButton("Stop Log"); // Starts as "Stop" because isKbLogging = true
+    QPushButton* btnClearKb = new QPushButton("Clear Log");
 
-    kbInterfaceCheck->setChecked(true);
+    kbIntCheck->setChecked(true);
+    kbIdCheck->setChecked(true);
+    kbKeyCheck->setChecked(true);
     kbIdCheck->setChecked(true);
     kbDownCheck->setChecked(true);
 
-    kbStartPauseBtn = new QPushButton("Pause");
-    connect(kbStartPauseBtn, &QPushButton::clicked, this, &DeviceBinder::toggleKeyboardLog);
+    kbOptV->addWidget(kbIntCheck); 
+    kbOptV->addWidget(kbProdCheck); 
+    kbOptV->addWidget(kbManCheck);
+    kbOptV->addWidget(kbKeyCheck); 
+    kbOptV->addWidget(kbIdCheck); 
+    kbOptV->addWidget(kbDownCheck);
+    kbOptV->addWidget(kbUpCheck); 
+    kbOptV->addSpacing(100);
+	kbOptV->addWidget(btnToggleKb); 
+    kbOptV->addWidget(btnClearKb);
+    kbOptV->addStretch();
 
-    QPushButton* clearBtn = new QPushButton("Clear Log");
-    connect(clearBtn, &QPushButton::clicked, this, &DeviceBinder::clearKeyboardLog);
+    kbLogText = new QTextEdit(); 
+    kbLogText->setReadOnly(true);
+    kbLayout->addWidget(kbOptions, 1); kbLayout->addWidget(kbLogText, 4);
+    tabs->addTab(kbPage, "Keyboard Log");
+    connect(btnToggleKb, &QPushButton::clicked, this, &DeviceBinder::onToggleKbLog);
+    connect(btnClearKb, &QPushButton::clicked, this, &DeviceBinder::onClearKbLog);
 
-    optLayout->addWidget(kbInterfaceCheck);
-    optLayout->addWidget(kbProductCheck);
-    optLayout->addWidget(kbIdCheck);
-    optLayout->addWidget(kbDownCheck);
-    optLayout->addWidget(kbUpCheck);
-    optLayout->addStretch();
-    optLayout->addWidget(kbStartPauseBtn);
-    optLayout->addWidget(clearBtn);
+    // --- TAB 3: MOUSE LOG ---
+    QWidget* mPage = new QWidget();
+    QHBoxLayout* mLayout = new QHBoxLayout(mPage);
+    QGroupBox* mOptions = new QGroupBox("Options");
+    QVBoxLayout* mOptV = new QVBoxLayout(mOptions);
 
-    // Log Area
-    keyboardLogText = new QTextEdit();
-    keyboardLogText->setReadOnly(true);
+    mIntCheck = new QCheckBox("Device Interface Name");
+    mProdCheck = new QCheckBox("Product Name");
+    mManCheck = new QCheckBox("Manufacturer Name");
+    mKeyCheck = new QCheckBox("Device Key");
+    mIdCheck = new QCheckBox("Device ID");
+    mDownCheck = new QCheckBox("Key Down");
+    mUpCheck = new QCheckBox("Key Up");
+	mPosCheck = new QCheckBox("Position");
+	mXCheck = new QCheckBox("X Coordinate");
+	mYCheck = new QCheckBox("Y Coordinate");
+    btnToggleM = new QPushButton("Stop Log"); // Starts as "Stop" because isKbLogging = true
+    QPushButton* btnClearM = new QPushButton("Clear Log");
 
-    mainLayout->addWidget(options, 1);
-    mainLayout->addWidget(keyboardLogText, 4);
-    tabs->addTab(container, "Keyboard Log");
-}
-
-void DeviceBinder::createMouseTab() {
-    // Similar to Keyboard tab, but adding the Position toggles
-    QWidget* container = new QWidget();
-    QHBoxLayout* mainLayout = new QHBoxLayout(container);
-
-    QGroupBox* options = new QGroupBox("Options");
-    QVBoxLayout* optLayout = new QVBoxLayout(options);
-
-    mPosCheck = new QCheckBox("Position");
-    mXCheck = new QCheckBox("X");
-    mYCheck = new QCheckBox("Y");
-    mXCheck->setEnabled(false);
+    mIntCheck->setChecked(true);
+    mIdCheck->setChecked(true);
+    mKeyCheck->setChecked(true);
+    mIdCheck->setChecked(true);
+    mDownCheck->setChecked(true);
+    mXCheck->setChecked(true);
+    mYCheck->setChecked(true);
+	mXCheck->setEnabled(false);
     mYCheck->setEnabled(false);
 
-    connect(mPosCheck, &QCheckBox::toggled, this, &DeviceBinder::updateMouseOptionsState);
 
-    optLayout->addWidget(mPosCheck);
-    optLayout->addWidget(mXCheck);
-    optLayout->addWidget(mYCheck);
-    // ... add other checkboxes like keyboard ...
+    mOptV->addWidget(mIntCheck);
+    mOptV->addWidget(mProdCheck);
+    mOptV->addWidget(mManCheck);
+    mOptV->addWidget(mKeyCheck);
+    mOptV->addWidget(mIdCheck);
+    mOptV->addWidget(mDownCheck);
+    mOptV->addWidget(mUpCheck);
+	mOptV->addWidget(mPosCheck);
+    mOptV->addWidget(mXCheck);
+    mOptV->addWidget(mYCheck);
+    mOptV->addSpacing(100);
+    mOptV->addWidget(btnToggleM);
+    mOptV->addWidget(btnClearM);
+    mOptV->addStretch();
+    
 
-    mouseLogText = new QTextEdit();
-    mouseLogText->setReadOnly(true);
 
-    mainLayout->addWidget(options, 1);
-    mainLayout->addWidget(mouseLogText, 4);
-    tabs->addTab(container, "Mouse Log");
+    mLogText = new QTextEdit();
+    mLogText->setReadOnly(true);
+
+    mLayout->addWidget(mOptions, 1);
+    mLayout->addWidget(mLogText, 4);
+    tabs->addTab(mPage, "Mouse Log");
+
+    // Signal/Slot Connections
+    connect(mPosCheck, &QCheckBox::toggled, this, &DeviceBinder::onPositionToggled);
+    connect(btnToggleM, &QPushButton::clicked, this, &DeviceBinder::onToggleMLog);
+    connect(btnClearM, &QPushButton::clicked, this, &DeviceBinder::onClearMLog);
+    setCentralWidget(tabs);
 }
 
-// Thread-safe update bridge
-void DeviceBinder::postKeyboardLog(const QString& text) {
-    if (kbRunning) emit logMessageReceived(keyboardLogText, text);
+void DeviceBinder::populateDeviceTree() {
+    deviceTree->blockSignals(true);
+    deviceTree->clear();
+
+    // Create Root Groups
+    QTreeWidgetItem* mouseGroup = new NumericTreeWidgetItem(deviceTree, {"Mice"});
+    QTreeWidgetItem* kbGroup = new NumericTreeWidgetItem(deviceTree, {"Keyboards"});
+
+    int kbCount = 0;
+    int mCount = 0;
+
+    auto& devs = DeviceManager::getInstance().devices; //
+    for (const auto& d : devs) {
+        if (d->type == 1) {
+            kbCount++;
+        } else if (d->type == 0) {
+            mCount++;
+        }
+        QTreeWidgetItem* parent = d->type ? kbGroup : mouseGroup; // RIM_TYPEMOUSE=0
+
+        QTreeWidgetItem* item = new NumericTreeWidgetItem(parent);
+        item->setText(0, QString::number(d->id));
+        item->setText(1, QString::fromStdWString(d->productName));
+        item->setText(2, QString::fromStdWString(d->manufacturerName));
+        item->setText(3, QString::fromStdString(d->deviceInterfaceName));
+
+        item->setFlags(item->flags() | Qt::ItemIsEditable);
+    }
+    summaryLabel->setText(QString("Device Count: %1  Keyboard Count: %2  Mouse Count: %3")
+                          .arg(devs.size())
+                          .arg(kbCount)
+                          .arg(mCount));
+    deviceTree->expandAll();
+
+    // Step 1: Tell Qt to fit the columns to the new text
+    deviceTree->header()->resizeSections(QHeaderView::ResizeToContents);
+
+    // Step 2: Switch back to Interactive so the user can take over
+    for (int i = 0; i < 4; i++) {
+        deviceTree->header()->setSectionResizeMode(i, QHeaderView::Interactive);
+    }
+    deviceTree->setSortingEnabled(true);
+    deviceTree->sortByColumn(0, Qt::AscendingOrder);
+    deviceTree->blockSignals(false);
 }
 
-void DeviceBinder::postMouseLog(const QString& text) {
+void DeviceBinder::onPositionToggled(bool checked) {
+    mXCheck->setEnabled(checked);
+    mYCheck->setEnabled(checked);
 }
 
-void DeviceBinder::appendToLog(QTextEdit* target, QString message) {
-    target->append(message);
+void DeviceBinder::addLog(int type, const QString& msg) { emit requestLogUpdate(type, msg); }
+
+void DeviceBinder::onSaveMapping() {
+    // 1. Update the backend DeviceManager with values from the UI Tree
+    // We use an iterator to traverse top-level groups (Mice/Keyboards) and their children
+    QTreeWidgetItemIterator it(deviceTree);
+    while (*it) {
+        QTreeWidgetItem* item = *it;
+        if (item->parent()) { // Only process child items (actual devices), not headers
+            int newId = item->text(0).toInt();
+            std::string interfaceName = item->text(3).toStdString();
+
+            // Find the device in the singleton and update its ID
+            for (auto& d : DeviceManager::getInstance().devices) {
+                if (d->deviceInterfaceName == interfaceName) {
+                    d->id = newId;
+                    break;
+                }
+            }
+        }
+        ++it;
+    }
+    // 3. Save to the default "mapping.mapping" file
+    currentMapping.saveMapping();
+
+    this->setWindowTitle("Device Binder"); // Reset "Unsaved" title if you used one
+    QMessageBox::information(this, "Success", "Mapping saved");
 }
 
-void DeviceBinder::toggleKeyboardLog() {
-    kbRunning = !kbRunning;
-    kbStartPauseBtn->setText(kbRunning ? "Pause" : "Resume");
-}
+void DeviceBinder::onApplyMapping() {
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    "Apply Mapping", "", "Mapping Files (*.mapping);;All Files (*)");
 
-void DeviceBinder::toggleMouseLog() {
-}
+    if (!fileName.isEmpty()) {
+        // Load the new mapping
+        Mapping newMapping(fileName.toStdString());
 
-void DeviceBinder::clearKeyboardLog() {
-}
+        // Apply it to the devices
+        DeviceManager::getInstance().setMapping(newMapping);
+        newMapping.saveMapping();
 
-void DeviceBinder::clearMouseLog() {
+        // Refresh the UI to show the new IDs
+        populateDeviceTree();
+    }
 }
+void DeviceBinder::onExportMapping() {
+    // 1. Get the custom path from the user
+    QString fileName = QFileDialog::getSaveFileName(this,
+                                                    "Export Mapping", "", "Mapping Files (*.mapping)");
 
-void DeviceBinder::updateMouseOptionsState() {
-    bool enabled = mPosCheck->isChecked();
-    mXCheck->setEnabled(enabled);
-    mYCheck->setEnabled(enabled);
+    if (!fileName.isEmpty()) {
+        // 2. Create a new mapping object for this specific file
+        Mapping exportMap(fileName.toStdString());
+
+        // 4. Write it to disk
+        exportMap.saveMapping();
+
+        QMessageBox::information(this, "Export", "Mapping exported successfully!");
+    }
 }
-
-void DeviceBinder::handleApplyMapping() {
-}
-
-void DeviceBinder::handleExportKeyboardLog() {
-    QString path = QFileDialog::getSaveFileName(this, "Export Log", "", "Text Files (*.txt)");
-    if (!path.isEmpty()) {
+void DeviceBinder::onExportKbLog() {
+    QString path = QFileDialog::getSaveFileName(this, "Export Keyboard Log", "", "Text (*.txt)");
+    if (!path.isEmpty()) { 
         QFile file(path);
-        if (file.open(QIODevice::WriteOnly)) {
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&file);
-            out << keyboardLogText->toPlainText();
+            // 3. Write the entire content of the log buffer
+            out << kbLogText->toPlainText();
+            file.close();
+            QMessageBox::information(this, "Export Success", "Keyboard log exported successfully.");
+        } else {
+            QMessageBox::critical(this, "Export Error", "Could not open file for writing.");
         }
     }
 }
 
-void DeviceBinder::handleExportMouseLog() {
+void DeviceBinder::onExportMLog() {
+    QString path = QFileDialog::getSaveFileName(this, "Export Mouse Log", "", "Text (*.txt)");
+    if (!path.isEmpty()) { 
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << mLogText->toPlainText();
+            file.close();
+            QMessageBox::information(this, "Export Success", "Mouse log exported successfully.");
+        } else {
+            QMessageBox::critical(this, "Export Error", "Could not open file for writing.");
+        }
+    }
 }
 
-// Standard Qt Destructor
-DeviceBinder::~DeviceBinder() {}
-int main(int argc, char* argv[]) {
-    // 1. Initialize the Qt Application (High DPI, Styles, etc.)
-    QApplication app(argc, argv);
+void DeviceBinder::onItemChanged(QTreeWidgetItem* item, int column) {
+    if (column == 0) { // If the ID column was edited
+        int newId = item->text(0).toInt();
+        std::string interfaceName = item->text(3).toStdString();
 
-    // 2. Create your Window object
-    DeviceBinder window;
+        // Update the backend DeviceManager immediately
+        for (auto& d : DeviceManager::getInstance().devices) {
+            if (d->deviceInterfaceName == interfaceName) {
+                d->id = newId;
+                this->setWindowTitle("Device Binder - Unsaved Changes*");
+                break;
+            }
+        }
+    }
+}
+void DeviceBinder::onToggleKbLog() {
+    isKbLogging = !isKbLogging;
 
-    // 3. You MUST call show(), otherwise it stays hidden in memory
-    window.show();
+    if (isKbLogging) {
+        btnToggleKb->setText("Stop Log");
+    } else {
+        btnToggleKb->setText("Start Log");
+    }
+}
 
-    // 4. Start the event loop. This blocks until the window is closed.
-    return app.exec();
+void DeviceBinder::onClearKbLog() {
+    kbLogText->clear();
+}
+void DeviceBinder::onToggleMLog() {
+    isMLogging = !isMLogging;
+    btnToggleM->setText(isMLogging ? "Stop Log" : "Start Log");
+}
+
+void DeviceBinder::onClearMLog() {
+    mLogText->clear();
+}
+void DeviceBinder::onLogReceived(int type, QString msg) {
+    if (type == 0) { // Keyboard
+        if (isKbLogging) {
+            kbLogText->append(msg);
+        }
+    } else if (type == 1) { // Mouse
+        if (isMLogging) { // Only update if Start was pressed
+            mLogText->append(msg);
+        }
+    }
 }

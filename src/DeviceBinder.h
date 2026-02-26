@@ -2,70 +2,68 @@
 #define DEVICEBINDER_H
 
 #include <QMainWindow>
+#include <QTreeWidget>
 #include <QTableWidget>
-#include <QTextEdit>
 #include <QCheckBox>
+#include <QTextEdit>
 #include <QPushButton>
 #include <QTabWidget>
-#include <QGroupBox>
 #include <QVBoxLayout>
-
-// Assuming these are your existing non-GUI headers
-#include <device/DeviceManager.h>
-#include <windows/Interceptor.h>
+#include <QHBoxLayout>
+#include <QGroupBox>
+#include <QHeaderView>
+#include <QLabel>
+#include <QFileDialog>
+#include <QMessageBox>
+#include <QMenuBar>
+#include "NumericTreeWidget.h" //
+#include "device/DeviceManager.h" //
+#include "device/Mapping.h" //
 
 class DeviceBinder : public QMainWindow {
     Q_OBJECT
 
 public:
-    DeviceBinder(QWidget* parent = nullptr);
+    DeviceBinder(Mapping& mappingRef,QWidget* parent = nullptr);
     ~DeviceBinder();
 
-    // These public methods allow the interceptor callbacks to send data to the UI
-    void postKeyboardLog(const QString& text);
-    void postMouseLog(const QString& text);
+    // Checkboxes from your Win32 code
+    QCheckBox* kbIdCheck, * kbProdCheck, * kbManCheck, * kbIntCheck, * kbKeyCheck, * kbDownCheck, * kbUpCheck;
+    QCheckBox* mIdCheck, * mProdCheck, * mManCheck, * mIntCheck, * mKeyCheck, * mDownCheck, * mUpCheck, * mPosCheck, * mXCheck, * mYCheck;
+    QTextEdit* kbLogText, * mLogText;
+
+    bool kbRunning = true;
+    bool mRunning = true;
+
+    void addLog(int type, const QString& message);
 
 signals:
-    // Internal signal to bridge threads safely
-    void logMessageReceived(QTextEdit* target, QString message);
+    void requestLogUpdate(int type, QString message);
 
 private slots:
-    void handleSaveMapping();
-    void handleApplyMapping();
-    void handleExportKeyboardLog();
-    void handleExportMouseLog();
-    void toggleKeyboardLog();
-    void toggleMouseLog();
-    void clearKeyboardLog();
-    void clearMouseLog();
-    void updateMouseOptionsState();
-
-    // Thread-safe UI updater
-    void appendToLog(QTextEdit* target, QString message);
+    void onLogReceived(int type, QString message);
+    void populateDeviceTree();
+    void onPositionToggled(bool checked);
+    void onItemChanged(QTreeWidgetItem* item, int column);
+    void onSaveMapping();   // Ported from IDM_SAVE_MAPPING
+    void onApplyMapping();  // Ported from IDM_APPLY_MAPPING
+    void onExportMapping();
+    void onExportKbLog();
+    void onExportMLog();
+    void onToggleKbLog(); // To start/stop logging
+    void onClearKbLog();  // To clear the text edit
+    void onToggleMLog(); // Start/Stop mouse log
+    void onClearMLog();  // Clear mouse text area
 
 private:
+    Mapping& currentMapping; // Initialized to "mapping.mapping" by default
     void setupUi();
-    void createDeviceTab();
-    void createKeyboardTab();
-    void createMouseTab();
-
-    QTabWidget* tabs;
-
-    // Device Tab
-    QTableWidget* deviceTable;
-
-    // Keyboard Tab
-    QTextEdit* keyboardLogText;
-    QCheckBox* kbInterfaceCheck, * kbProductCheck, * kbManufacturerCheck, * kbIdCheck, * kbKeyCheck, * kbDownCheck, * kbUpCheck;
-    QPushButton* kbStartPauseBtn;
-    bool kbRunning = true;
-
-    // Mouse Tab
-    QTextEdit* mouseLogText;
-    QCheckBox* mInterfaceCheck, * mProductCheck, * mManufacturerCheck, * mIdCheck, * mKeyCheck, * mDownCheck, * mUpCheck;
-    QCheckBox* mPosCheck, * mXCheck, * mYCheck;
-    QPushButton* mStartPauseBtn;
-    bool mRunning = true;
+    QTreeWidget* deviceTree;
+    QLabel* summaryLabel; // Add this member
+    QPushButton* btnToggleKb;
+    bool isKbLogging = true; // Track state
+    QPushButton* btnToggleM;
+    bool isMLogging = true; // Tracking mouse logging state
 };
 
 #endif
